@@ -17,13 +17,21 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with('category', 'brand')
+            ->when(request('search'), function ($query) {
+                return $query->where('name', 'like', '%' . request('search') . '%');
+            })
+            ->when(request('status'), function ($query) {
+                return $query->where('status', request('status'));
+            })
             ->paginate(20);
         return view('admin.products.index', compact('products'));
     }
 
     public function create()
     {
-        return view('admin.products.create');
+        $categories = \App\Models\Category::where('active', true)->get();
+        $brands = \App\Models\Brand::where('active', true)->get();
+        return view('admin.products.create', compact('categories', 'brands'));
     }
 
     public function store(Request $request)
@@ -37,6 +45,8 @@ class ProductController extends Controller
             'stock' => 'required|integer|min:0',
         ]);
 
+        $validated['status'] = 'published';
+        $validated['slug'] = \Str::slug($validated['name']);
         Product::create($validated);
 
         return redirect()->route('admin.products.index')
@@ -45,7 +55,9 @@ class ProductController extends Controller
 
     public function edit(Product $product)
     {
-        return view('admin.products.edit', compact('product'));
+        $categories = \App\Models\Category::where('active', true)->get();
+        $brands = \App\Models\Brand::where('active', true)->get();
+        return view('admin.products.edit', compact('product', 'categories', 'brands'));
     }
 
     public function update(Request $request, Product $product)
